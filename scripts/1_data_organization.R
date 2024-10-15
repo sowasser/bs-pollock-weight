@@ -3,13 +3,14 @@
 library(dplyr)
 library(ggplot2)
 library(VAST)
+library(here)
 
 ###CPUE
 ##Upload data files
-length_age_key <- read.csv("~/Dropbox/Pollock/data/age_length_key_full_densdep_corrected2021.csv")
-data_sub <- readRDS("~/Dropbox/Pollock/data/data_for_Julia_050422.rds")
-data <- read.csv("~/Dropbox/Pollock/data/ebs_nbs_data.csv")
-cruise <- read.csv("~/Dropbox/Pollock/data/cruise_data.csv")
+length_age_key <- read.csv(here("data", "raw_data", "age_length_key_full_densdep_corrected2021.csv"))
+data_sub <- readRDS(here("data", "raw_data", "data_for_Julia_050422.rds"))
+data <- read.csv(here("data", "raw_data", "ebs_nbs_data.csv"))
+cruise <- read.csv(here("data", "raw_data", "cruise_data.csv"))
 
 names(length_age_key) <- tolower(names(length_age_key))
 names(data_sub) <- tolower(names(data_sub))
