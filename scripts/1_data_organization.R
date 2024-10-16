@@ -255,10 +255,10 @@ example <- bind_rows(example1, example2)
 # Remove weird 0 ages
 example <- subset(example, example$age_bin > 0)
 
-#Limit to before 2019 if wanted (ie exclude 2021 abundance data)
-example <- subset(example, year < 2020)
+# Limit to before 2019 if wanted (ie exclude 2021 abundance data)
+# example <- subset(example, year < 2020)
 
-#Sanity check on data
+# Sanity check on data
 check <- as.data.frame(example)
 check2 <- aggregate(weight_combined ~ year + age_bin, check, FUN = length)
 check2 <- check2 %>% spread(key = "age_bin", value = "weight_combined")
@@ -267,6 +267,6 @@ ggplot(check, aes(x = age_bin, y = weight_combined, group = year, color = year))
 check3 <- aggregate(age_cpue_sum ~ year + age_bin, check, FUN = length)
 check3 <- check3 %>% spread(key = "age_bin", value = "age_cpue_sum")
 
-#Save combined data
+# Save combined data
 write.csv(example, here("data", "formatted_data", "final", "data_combined.csv"))
 saveRDS(example, here("data", "formatted_data", "final", "data_combined.rds"))
