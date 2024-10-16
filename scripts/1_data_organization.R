@@ -1,18 +1,17 @@
 ##### ORGANIZE AND FORMAT OBSERVATION DATA
 
 library(dplyr)
+library(tidyr)
 library(ggplot2)
-# library(VAST)
 library(here)
 
 ### CPUE ----------------------------------------------------------------------
-## Upload data files
+## Load data files
+alk <- read.csv(here("data", "raw_data", "age_length_key_full_densdep_corrected2024.csv"))
+specimen <- read.csv(here("data", "raw_data", "raw_data_pollock_specimen_2024-10-15.csv"))
+haul <- read.csv(here("data", "raw_data", "raw_data_hauls_survey_2024-10-15.csv"))
+catch <- read.csv(here("data", "raw_data", "raw_data_pollock_catch_2024-10-15.csv"))
 cruise <- read.csv(here("data", "raw_data", "cruise_data.csv"))
-
-alk <- read.csv(here("data", "data_2024", "age_length_key_full_densdep_corrected2024.csv"))
-specimen <- read.csv(here("data", "data_2024", "raw_data_pollock_specimen_2024-10-15.csv"))
-haul <- read.csv(here("data", "data_2024", "raw_data_hauls_survey_2024-10-15.csv"))
-catch <- read.csv(here("data", "data_2024", "raw_data_pollock_catch_2024-10-15.csv"))
 
 names(alk) <- tolower(names(alk))
 names(specimen) <- tolower(names(specimen))
@@ -167,8 +166,6 @@ specimen$data_available <- case_when(specimen$weight_available == TRUE & specime
 specimen$age_bin <- ifelse(specimen$age >= 15, 15, specimen$age)
 
 # Merge with haul information
-# cruise$cruisejoin <- as.factor(cruise$cruisejoin)
-# specimen$cruisejoin <- as.factor(specimen$cruisejoin)
 
 # Merge dataframes and make new dataframe
 data2 <- specimen %>% 
@@ -214,64 +211,62 @@ saveRDS(specimen_data, file = here("data", "formatted_data", "specimen_data_edit
 
 
 ##### Handling extrapolation grid ---------------------------------------------
-# #Add ebs and nbs extrapolation grid csv's from Jim Thorson
+# # Add ebs and nbs extrapolation grid csv's from Jim Thorson
 # ebs_grid <- read.csv("~/Dropbox/Mac/Documents/Documents/Pollock/data/EBSThorsonGrid.csv")
 # nbs_grid <- read.csv("~/Dropbox/Mac/Documents/Documents/Pollock/data/NBSThorsonGrid.csv")
 # 
-# #Add columns for "eastern" and "northern"
+# # Add columns for "eastern" and "northern"
 # ebs_grid$location <- paste("eastern")
 # nbs_grid$location <- paste("northern")
 # 
-# #Merge grids
+# # Merge grids
 # bs_grid <- rbind(ebs_grid, nbs_grid)
 # 
-# #Convert m^2 to km^2 and label column w/ correct VAST formatting
-# bs_grid$Area_km2 <- bs_grid$Shape_Area/1000000
+# # Convert m^2 to km^2 and label column w/ correct VAST formatting
+# bs_grid$Area_km2 <- bs_grid$Shape_Area / 1000000
 # 
-# #Save extrapolation grid as rds file
-# saveRDS(bs_grid, file="bs_grid.rds")
+# # Save extrapolation grid as rds file
+# saveRDS(bs_grid, file = "bs_grid.rds")
 
 # Read in extrapolation grid
-bs_grid <- readRDS(here("data", "formatted_data", "final", "bs_grid.rds"))
+user_region <- readRDS(here("data", "formatted_data", "final", "bs_grid.rds"))
 
-####Combine CPUE and specimen (weight) data for model fitting
-#Upload CPUE and specimen data, if needed
-CPUE <- read.csv("cpue_final.csv")
-weight <- read.csv("specimen_data_edited.csv")
+#### Combine CPUE and specimen (weight) data for model fitting
+# Upload CPUE and specimen data, if needed
+cpue_final <- read.csv(here("data", "formatted_data", "final", "cpue_final.csv"))
+specimen_data <- read.csv(here("data", "formatted_data", "specimen_data_edited_streamlined.csv"))
 
-#Upload extrapolation grid file, if needed
-user_region <- readRDS("bs_grid.rds")
+# Combine datasets
+cpue_final$start_latitude <- as.numeric(cpue_final$start_latitude)
+cpue_final$start_longitude <- as.numeric(cpue_final$start_longitude)
 
-#Combine datasets
-CPUE$start_latitude <- as.numeric(CPUE$start_latitude)
-CPUE$start_longitude <- as.numeric(CPUE$start_longitude)
-
-example1 <- weight
-example2 <- CPUE
+example1 <- specimen_data
+example2 <- cpue_final
 example1$lat <- example1$start_latitude
 example1$lon <- example1$start_longitude
 example2$weight <- NULL
 
-#Combine weight_calculated and weight observed
-example1$weight_combined <-ifelse( !is.na(example1$weight), example1$weight, example1$weight_calculated)
+# Combine weight_calculated and weight observed
+example1$weight_combined <- ifelse(!is.na(example1$weight), example1$weight, example1$weight_calculated)
 
-#bind
+# bind
 example <- bind_rows(example1, example2)
 
-#Remove weird 0 ages
-example <- subset(example, example$age_bin>0)
+# Remove weird 0 ages
+example <- subset(example, example$age_bin > 0)
 
 #Limit to before 2019 if wanted (ie exclude 2021 abundance data)
-example <- subset(example, year<2020)
+example <- subset(example, year < 2020)
 
 #Sanity check on data
 check <- as.data.frame(example)
-check2 <- aggregate(weight_combined~year+age_bin, check, FUN=length)
-check2 <- check2 %>% spread(key="age_bin", value="weight_combined")
-#ggplot(check2, aes(x=age_bin, y=weight_combined, group=year, color=year))+geom_line()
-check3 <- aggregate(age_cpue_sum~year+age_bin, check, FUN=length)
-check3 <- check3 %>% spread(key="age_bin", value="age_cpue_sum")
+check2 <- aggregate(weight_combined ~ year + age_bin, check, FUN = length)
+check2 <- check2 %>% spread(key = "age_bin", value = "weight_combined")
+ggplot(check, aes(x = age_bin, y = weight_combined, group = year, color = year)) + 
+  geom_line()
+check3 <- aggregate(age_cpue_sum ~ year + age_bin, check, FUN = length)
+check3 <- check3 %>% spread(key = "age_bin", value = "age_cpue_sum")
 
 #Save combined data
-write.csv(example, "data_combined.csv")
-saveRDS(example, "data_combined.rds")
+write.csv(example, here("data", "formatted_data", "final", "data_combined.csv"))
+saveRDS(example, here("data", "formatted_data", "final", "data_combined.rds"))
