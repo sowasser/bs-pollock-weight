@@ -1,5 +1,12 @@
+# Ignore generated RStudio files
+
 *.Rproj
 .Rproj.user
 .Rhistory
 .RData
 .Ruserdata
+
+# Ignore data
+*.csv
+*.rds
+!bs_grid.rds  # Don't ignore the grid file
