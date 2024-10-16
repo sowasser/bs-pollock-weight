@@ -7,27 +7,30 @@ library(here)
 
 ###CPUE
 ##Upload data files
-length_age_key <- read.csv(here("data", "raw_data", "age_length_key_full_densdep_corrected2021.csv"))
-data_sub <- readRDS(here("data", "raw_data", "data_for_Julia_050422.rds"))
-data <- read.csv(here("data", "raw_data", "ebs_nbs_data.csv"))
 cruise <- read.csv(here("data", "raw_data", "cruise_data.csv"))
 
-names(length_age_key) <- tolower(names(length_age_key))
-names(data_sub) <- tolower(names(data_sub))
-names(data) <- tolower(names(data))
+alk <- read.csv(here("data", "data_2024", "age_length_key_full_densdep_corrected2024.csv"))
+specimen <- read.csv(here("data", "data_2024", "raw_data_pollock_specimen_2024-10-15.csv"))
+haul <- read.csv(here("data", "data_2024", "raw_data_hauls_survey_2024-10-15.csv"))
+catch <- read.csv(here("data", "data_2024", "raw_data_pollock_catch_2024-10-15.csv"))
+
+names(alk) <- tolower(names(alk))
+names(specimen) <- tolower(names(specimen))
+names(haul) <- tolower(names(haul))
+names(catch) <- tolower(names(catch))
 names(cruise) <- tolower(names(cruise))
 
 ###CPUE data
 ##Merging CPUE with *all* cruise data, retaining zero catches
-#Make cruisejoin a factor
-length_age_key$cruisejoin <- as.factor(length_age_key$cruisejoin)
-data_sub$cruisejoin <- as.factor(data_sub$cruisejoin.x)
 
 #Streamline haul data data_sub to just relevant columns
-hauls <- data_sub[,c("hauljoin", "cruisejoin", "cruise", "haul", "start_latitude", "start_longitude", "year", "weight", "number_fish")]
+
+hauls <- merge(catch, haul, by = c("hauljoin", "cruisejoin")) %>%
+  select(hauljoin, cruisejoin, cruise.x, haul.x, start_latitude, start_longitude, year, weight, number_fish)
+colnames(hauls)[3:4] <- c("cruise", "haul")
 
 #Merge hauls and cpue data to get all hauls w/ zero pollock also
-cpue2 <- length_age_key %>%
+cpue2 <- alk %>%
   full_join(hauls, by= c("cruisejoin", "haul", "year", "start_latitude", "start_longitude"))
 
 #Age bin
@@ -70,12 +73,12 @@ missing_abundance <- subset(missing_abundance, missing_abundance$year !=2021)
 missing_abundance <- subset(missing_abundance, missing_abundance$age_cpue_corr !=0)
 
 #save intermediate steps as csv, if wanted
-write.csv(cpue_final_removed, "missing_abundance.csv")
-write.csv(cpue_final, "cpue_final_no_zero_corrected.csv")
+write.csv(cpue_final_removed, here("data", "formatted_data", "missing_abundance.csv"))
+write.csv(cpue_final, here("data", "formatted_data", "cpue_final_no_zero_corrected.csv"))
 
 #save intermediate steps as rds, if wanted
-saveRDS(cpue_final_removed, "missing_abundance.rds")
-saveRDS(cpue_final, "cpue_final_no_zero_corrected.rds")
+saveRDS(cpue_final_removed, here("data", "formatted_data", "missing_abundance.rds"))
+saveRDS(cpue_final, here("data", "formatted_data", "cpue_final_no_zero_corrected.rds"))
 
 #Remove weird age zeroes
 cpue_final_edit2 <- cpue_final_edit %>% 
@@ -128,35 +131,35 @@ glimpse(Data_long)
 Data_long <- subset(Data_long, Data_long$age_bin !=0)
 
 #Save final cpue data
-write.csv(Data_long, "cpue_final.csv")
-readRDS(Data_long, "cpue_final.rds")
+write.csv(Data_long, here("data", "formatted_data", "final", "cpue_final.csv"))
+saveRDS(Data_long, here("data", "formatted_data", "final", "cpue_final.rds"))
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ####SPECIMEN DATA (IE WEIGHT)
 
 #Determine False/True if weight data available
-data$weight_available <- data$weight %>% 
+specimen$weight_available <- specimen$weight %>% 
   is.na %>% 
   `!` 
 #Determine False/True if age data available
-data$age_available <- data$age%>% 
+specimen$age_available <- specimen$age%>% 
   is.na %>% 
   `!` 
 #Designate categories 1, 2, 3, 4 for level of data available
-data$data_available <- case_when(data$weight_available==TRUE & data$age_available==FALSE~2,
-                                 data$age_available==TRUE & data$weight_available==FALSE~3,
-                                 data$age_available==FALSE & data$weight_available==FALSE~1,
-                                 data$age_available==TRUE & data$weight_available==TRUE~4)
+specimen$data_available <- case_when(specimen$weight_available==TRUE & specimen$age_available==FALSE~2,
+                                     specimen$age_available==TRUE & specimen$weight_available==FALSE~3,
+                                     specimen$age_available==FALSE & specimen$weight_available==FALSE~1,
+                                     specimen$age_available==TRUE & specimen$weight_available==TRUE~4)
 
 #Make 15+ bin in new variable called "age_bin"
-data$age_bin <- ifelse(data$age>=15, 15, data$age)
+specimen$age_bin <- ifelse(specimen$age>=15, 15, specimen$age)
 
 #Merge with haul information
 cruise$cruisejoin <- as.factor(cruise$cruisejoin)
-data$cruisejoin <- as.factor(data$cruisejoin)
+specimen$cruisejoin <- as.factor(specimen$cruisejoin)
 
 #Merge  dataframes and make new dataframe
-data2 <- data %>% 
+data2 <- specimen %>% 
   left_join(cruise, by = "cruisejoin")
 
 #Create column w/ EBS and NBS based on stratum
@@ -182,14 +185,14 @@ abline(a=0,b=1)
 abline(lm(weight_calculated ~ weight, data = data2), col = "blue")
 
 #Save intermediate step as csv, if wanted
-write.csv(weight2, file="specimen_data_edited_complete.csv")
+write.csv(data2, file = here("data", "formatted_data", "specimen_data_edited_complete.csv"))
 
 #Create streamlined dataframe for individual weight data
 specimen_data <- data2[,c('year', 'start_latitude', 'start_longitude', 'region.x','survey_name', 'location','hauljoin', 'cruisejoin', 'sex', 'age_bin', 'age', 'weight', 'weight_calculated','length', 'data_available')]
 
 #Save as csv and rds
-write.csv(specimen_data, file="specimen_data_edited_streamlined.csv")
-saveRDS(specimen_data, fil="specimen_data_edited_streamlined.rds")
+write.csv(specimen_data, file = here("data", "formatted_data", "specimen_data_edited_streamlined.csv"))
+saveRDS(specimen_data, file = here("data", "formatted_data", "specimen_data_edited_streamlined.rds"))
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #####Handling extrapolation grid
