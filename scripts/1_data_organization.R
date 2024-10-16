@@ -48,14 +48,14 @@ cpue_final3 <- cpue_final2 %>%
 # Filter out duplicate rows w/ multiple 15 age bins
 cpue_final <- cpue_final3 %>% 
   group_by(year, age_bin, start_latitude, start_longitude) %>%
-  distinct(age_cpue_sum,.keep_all=TRUE) %>%
+  distinct(age_cpue_sum, .keep_all=TRUE) %>%
   ungroup()
 
 # Sanity check that this  is correct and actually does what I want it to
-cpue_final3_15 <- subset(cpue_final3, cpue_final3$age_bin==15)
+cpue_final3_15 <- subset(cpue_final3, cpue_final3$age_bin == 15)
 cpue_final_15b <- cpue_final3_15 %>% 
   group_by(year, age_bin, start_latitude, start_longitude) %>%
-  distinct(age_cpue_sum,.keep_all=TRUE) %>%
+  distinct(age_cpue_sum, .keep_all=TRUE) %>%
   ungroup()
 #PASSES - SNW: how to tell? 
 
@@ -73,8 +73,10 @@ missing_abundance <- subset(missing_abundance, missing_abundance$year != 2021)
 missing_abundance <- subset(missing_abundance, missing_abundance$age_cpue_corr != 0)
 
 # save intermediate steps as csv, if wanted
-write.csv(cpue_final_removed, here("data", "formatted_data", "missing_abundance.csv"))
-write.csv(cpue_final, here("data", "formatted_data", "cpue_final_no_zero_corrected.csv"))
+write.csv(cpue_final_removed, here("data", "formatted_data", "missing_abundance.csv"),
+          row.names = FALSE)
+write.csv(cpue_final, here("data", "formatted_data", "cpue_final_no_zero_corrected.csv"),
+          row.names = FALSE)
 
 # save intermediate steps as rds, if wanted
 saveRDS(cpue_final_removed, here("data", "formatted_data", "missing_abundance.rds"))
@@ -142,11 +144,14 @@ glimpse(Data_long)
 Data_long <- subset(Data_long, Data_long$age_bin != 0)
 
 # Save final cpue data
-write.csv(Data_long, here("data", "formatted_data", "final", "cpue_final.csv"))
+write.csv(Data_long, here("data", "formatted_data", "final", "cpue_final.csv"),
+          row.names = FALSE)
 saveRDS(Data_long, here("data", "formatted_data", "final", "cpue_final.rds"))
 
 
 #### SPECIMEN DATA (IE WEIGHT) ------------------------------------------------
+# Remove rows where species code == NA
+specimen <- specimen %>% filter(species_code == 21740)
 
 # Determine False/True if weight data available
 specimen$weight_available <- specimen$weight %>% 
@@ -197,7 +202,8 @@ abline(a = 0,b = 1)
 abline(lm(weight_calculated ~ weight, data = data2), col = "blue")
 
 # Save intermediate step as csv, if wanted
-write.csv(data2, file = here("data", "formatted_data", "specimen_data_edited_complete.csv"))
+write.csv(data2, file = here("data", "formatted_data", "specimen_data_edited_complete.csv"), 
+          row.names = FALSE)
 
 # Create streamlined dataframe for individual weight data
 specimen_data <- data2[, c('year', 'start_latitude', 'start_longitude', 
@@ -206,7 +212,8 @@ specimen_data <- data2[, c('year', 'start_latitude', 'start_longitude',
                            'weight_calculated','length', 'data_available')]
 
 # Save as csv and rds
-write.csv(specimen_data, file = here("data", "formatted_data", "specimen_data_edited_streamlined.csv"))
+write.csv(specimen_data, file = here("data", "formatted_data", "specimen_data_edited_streamlined.csv"),
+          row.names = FALSE)
 saveRDS(specimen_data, file = here("data", "formatted_data", "specimen_data_edited_streamlined.rds"))
 
 
@@ -255,17 +262,20 @@ example <- bind_rows(example1, example2)
 # Remove weird 0 ages
 example <- subset(example, example$age_bin > 0)
 
+test <- example1$hauljoin %in% example2$hauljoin
+
+
 # Limit to before 2019 if wanted (ie exclude 2021 abundance data)
 # example <- subset(example, year < 2020)
 
 # Sanity check on data
 check <- as.data.frame(example)
 check2 <- aggregate(weight_combined ~ year + age_bin, check, FUN = length)
-check2 <- check2 %>% spread(key = "age_bin", value = "weight_combined")
-ggplot(check, aes(x = age_bin, y = weight_combined, group = year, color = year)) + 
+check3 <- check2 %>% spread(key = "age_bin", value = "weight_combined")
+ggplot(check2, aes(x = age_bin, y = weight_combined, group = year, color = year)) + 
   geom_line()
-check3 <- aggregate(age_cpue_sum ~ year + age_bin, check, FUN = length)
-check3 <- check3 %>% spread(key = "age_bin", value = "age_cpue_sum")
+check4 <- aggregate(age_cpue_sum ~ year + age_bin, check, FUN = length)
+check4 <- check4 %>% spread(key = "age_bin", value = "age_cpue_sum")
 
 # Save combined data
 write.csv(example, here("data", "formatted_data", "final", "data_combined.csv"))
